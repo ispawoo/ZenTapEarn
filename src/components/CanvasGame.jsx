@@ -12,21 +12,32 @@ export const CanvasGame = ({ mode, isPaused, onPointScored }) => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let animationFrameId;
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
-
-    // Resize Handler
-    const handleResize = () => {
-      if (!canvas) return;
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+    let width = container.clientWidth || window.innerWidth;
+    let height = container.clientHeight || window.innerHeight;
+    
+    // Support crisp retina display
+    const setSize = () => {
+      width = container.clientWidth || window.innerWidth;
+      height = container.clientHeight || window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.scale(dpr, dpr);
     };
-    window.addEventListener('resize', handleResize);
+
+    setSize();
+
+    // Use ResizeObserver to ensure we always have the exact pixel dimensions of the layout
+    const resizeObserver = new ResizeObserver(() => {
+      setSize();
+    });
+    resizeObserver.observe(container);
 
     // Game Entities state arrays
     let bubbles = [];
@@ -51,14 +62,14 @@ export const CanvasGame = ({ mode, isPaused, onPointScored }) => {
         this.baseRadius = randomRange(24, 48);
         this.x = randomRange(this.baseRadius, width - this.baseRadius);
         this.y = height + this.baseRadius + randomRange(10, 80);
-        this.vx = randomRange(-0.4, 0.4);
-        this.vy = randomRange(-0.8, -1.8);
+        this.vx = randomRange(-0.6, 0.6);
+        this.vy = randomRange(-1.5, -3.5); // Faster upward drift
         this.color = `hsla(${randomRange(180, 220)}, 70%, 75%, 0.25)`;
         this.shineColor = `rgba(255, 255, 255, 0.5)`;
         this.isPopping = false;
         this.popProgress = 0;
         this.wobbleTime = randomRange(0, Math.PI * 2);
-        this.wobbleSpeed = randomRange(0.02, 0.05);
+        this.wobbleSpeed = randomRange(0.04, 0.08);
       }
 
       update() {
@@ -159,12 +170,12 @@ export const CanvasGame = ({ mode, isPaused, onPointScored }) => {
         this.x = randomRange(20, width - 20);
         this.y = randomRange(-80, -20);
         this.size = randomRange(25, 40);
-        this.vy = randomRange(0.6, 1.2);
-        this.swaySpeed = randomRange(0.01, 0.03);
-        this.swayRange = randomRange(15, 35);
+        this.vy = randomRange(1.8, 3.5); // Faster falling leaves
+        this.swaySpeed = randomRange(0.02, 0.04);
+        this.swayRange = randomRange(20, 45);
         this.swayTime = randomRange(0, 100);
         this.rotation = randomRange(0, Math.PI * 2);
-        this.rotSpeed = randomRange(-0.02, 0.02);
+        this.rotSpeed = randomRange(-0.03, 0.03);
         this.color = `hsla(${randomRange(90, 120)}, 65%, 55%, 0.6)`;
         this.fading = false;
         this.fadeVal = 1;
@@ -533,7 +544,7 @@ export const CanvasGame = ({ mode, isPaused, onPointScored }) => {
     canvas.addEventListener('touchstart', handleTap, { passive: true });
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       if (canvas) {
         canvas.removeEventListener('mousedown', handleTap);
         canvas.removeEventListener('touchstart', handleTap);
